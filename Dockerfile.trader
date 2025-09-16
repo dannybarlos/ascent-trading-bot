@@ -1,0 +1,17 @@
+# Trading Bot Service - Strategy execution
+FROM python:3.11-slim
+
+WORKDIR /workspace
+
+# Install Python dependencies
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
+COPY backend/ ./
+
+# Create shared directory
+RUN mkdir -p shared && chmod -R 755 shared
+
+# Start the scheduler service
+CMD ["python", "scheduler_main.py"]

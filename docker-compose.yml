@@ -1,0 +1,67 @@
+services:
+  # Redis for pub/sub messaging
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Main API service (HTTP routes, static files)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./shared/trading.db
+      - REDIS_URL=redis://redis:6379
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - APCA_API_KEY_ID=${APCA_API_KEY_ID}
+      - APCA_API_SECRET_KEY=${APCA_API_SECRET_KEY}
+      - APCA_API_BASE_URL=${APCA_API_BASE_URL}
+    volumes:
+      - shared_data:/workspace/shared
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # WebSocket service (real-time connections)
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile.websocket
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Trading bot service (strategy execution)
+  trader:
+    build:
+      context: .
+      dockerfile: Dockerfile.trader
+    environment:
+      - DATABASE_URL=sqlite:///./shared/trading.db
+      - REDIS_URL=redis://redis:6379
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - APCA_API_KEY_ID=${APCA_API_KEY_ID}
+      - APCA_API_SECRET_KEY=${APCA_API_SECRET_KEY}
+      - APCA_API_BASE_URL=${APCA_API_BASE_URL}
+    volumes:
+      - shared_data:/workspace/shared
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  shared_data:
