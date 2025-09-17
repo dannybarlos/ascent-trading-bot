@@ -1,3 +1,17 @@
+# Ascent Trading Bot - .gitignore
+# Updated for microservices architecture
+#
+# COMMIT THESE DIRECTORIES:
+# - core/          (shared libraries and clients)
+# - services/      (microservices implementation)
+# - infrastructure/ (Docker setup and configs)
+# - frontend/      (React SPA source code)
+#
+# IGNORE THESE DIRECTORIES:
+# - shared/        (Docker volume data)
+# - backend/static/ (generated static files)
+# - */dist/        (build artifacts)
+
 # Environment variables - NEVER COMMIT THESE!
 .env
 .env.local
@@ -6,8 +20,14 @@
 .env.production.local
 .claude
 .devcontainer
+
+# Service-specific environment files
 backend/.env
+services/*/.env
+infrastructure/.env
+core/.env
 */.env
+**/.env
 
 # API Keys and Secrets - SECURITY CRITICAL
 **/apikeys
@@ -52,6 +72,13 @@ env/
 *.db
 *.sqlite
 *.sqlite3
+trading.db
+shared/trading.db
+infrastructure/shared/trading.db
+
+# Shared volume data
+shared/
+*/shared/
 
 # Node.js
 node_modules/
@@ -81,6 +108,11 @@ Thumbs.db
 
 # Docker
 .dockerignore
+docker-compose.override.yml
+
+# Container volumes and data
+infrastructure/shared/
+volumes/
 
 # Temporary files
 *.tmp
@@ -91,3 +123,46 @@ Thumbs.db
 *.backup
 *.bak
 *.old
+
+# Microservices build artifacts
+services/*/dist/
+services/*/build/
+core/dist/
+core/build/
+
+# Testing and coverage
+.coverage
+.pytest_cache/
+.nyc_output/
+coverage/
+htmlcov/
+.tox/
+
+# Static files (generated)
+backend/static/
+services/api/static/
+
+# Legacy files (if any remain from refactoring)
+legacy/
+old/
+deprecated/
+
+# Editor and IDE specific
+*.code-workspace
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+CLAUDE.md
+
+# Redis data
+dump.rdb
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# MacOS specific
+.AppleDouble
+.LSOverride
+
+# Windows specific
+desktop.ini

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
 
-from database import Base
+from core.database.database_manager import Base
 
 class ExecutedTrade(Base):
     """Model for executed trades."""
