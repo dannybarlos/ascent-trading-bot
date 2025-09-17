@@ -13,8 +13,8 @@ services:
   # Main API service (HTTP routes, static files)
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ..
+      dockerfile: infrastructure/docker/api.Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -34,8 +34,8 @@ services:
   # WebSocket service (real-time connections)
   websocket:
     build:
-      context: .
-      dockerfile: Dockerfile.websocket
+      context: ..
+      dockerfile: infrastructure/docker/websocket.Dockerfile
     ports:
       - "8001:8001"
     environment:
@@ -47,8 +47,8 @@ services:
   # Trading bot service (strategy execution)
   trader:
     build:
-      context: .
-      dockerfile: Dockerfile.trader
+      context: ..
+      dockerfile: infrastructure/docker/trading.Dockerfile
     environment:
       - DATABASE_URL=sqlite:///./shared/trading.db
       - REDIS_URL=redis://redis:6379

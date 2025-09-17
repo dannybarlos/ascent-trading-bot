@@ -4,19 +4,19 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 
-from database import SessionLocal, engine
-from models import Base, ExecutedTrade, StrategyPerformance, BotControl
-from scheduler import bot
-from alpaca_client import (
+from core.database.database_manager import SessionLocal, engine
+from core.clients.alpaca_trading_client import (
     validate_connection, get_account, get_positions, get_activities,
     submit_market_order, get_recent_bars
 )
-from redis_client import redis_client
+from core.clients.redis_messaging_client import redis_client
+from core.database.trading_models import Base, ExecutedTrade, StrategyPerformance
+from services.trading.trading_engine import bot
 
 # ---------- Setup ----------
 
@@ -47,17 +47,17 @@ app.add_middleware(
 # ---------- Static Files ----------
 
 # Check if static directory exists
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
+STATIC_DIR = "/workspace/static"
+if os.path.exists(STATIC_DIR):
     # Mount assets directory at root for Vite-generated paths
-    assets_dir = os.path.join(static_dir, "assets")
+    assets_dir = os.path.join(STATIC_DIR, "assets")
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
         logger.info("📁 Serving assets from %s", assets_dir)
 
     # Mount static directory
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    logger.info("📁 Serving static files from %s", static_dir)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    logger.info("📁 Serving static files from %s", STATIC_DIR)
 
 # ---------- API Routes ----------
 
@@ -139,7 +139,7 @@ def execute_test_trade(data: dict):
             try:
                 bars = get_recent_bars(symbol, limit=1)
                 price = float(bars[0]["close"]) if bars else 100.0  # Default fallback
-            except Exception:  # pylint: disable=broad-except
+            except (KeyError, ValueError, IndexError):  # More specific exceptions
                 price = 100.0  # Final fallback price
 
         # Store trade in database
@@ -158,7 +158,7 @@ def execute_test_trade(data: dict):
             # Update strategy performance
             acc = get_account()
             if acc:
-                portfolio_value = float(acc._raw.get("cash", 0))
+                portfolio_value = float(getattr(acc, '_raw', {}).get("cash", 0))
             else:
                 portfolio_value = 0.0
             performance = StrategyPerformance(
@@ -191,7 +191,7 @@ def execute_test_trade(data: dict):
         finally:
             db.close()
 
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError) as e:
         logger.error("❌ Manual trade execution failed: %s", e)
         return {"success": False, "error": str(e)}
 
@@ -213,7 +213,7 @@ def get_recent_trades():
             }
             for trade in trades
         ]
-    except Exception as e:
+    except (ValueError, AttributeError) as e:
         logger.error("❌ Failed to fetch trades: %s", e)
         return {"error": str(e)}
     finally:
@@ -224,8 +224,8 @@ def get_recent_trades():
 @app.get("/")
 async def root():
     """Serve the React SPA for root route."""
-    spa_static_dir = os.path.join(os.path.dirname(__file__), "static")
-    index_file = os.path.join(spa_static_dir, "index.html")
+    # Static files are mounted at /workspace/static in container
+    index_file = os.path.join(STATIC_DIR, "index.html")
 
     # If the static directory and index.html exist, serve the SPA
     if os.path.exists(index_file):
@@ -237,10 +237,10 @@ async def root():
     }
 
 @app.get("/{path:path}")
-async def spa_fallback(request: Request, path: str):
+async def spa_fallback():
     """Serve the React SPA for all non-API routes."""
-    spa_static_dir = os.path.join(os.path.dirname(__file__), "static")
-    index_file = os.path.join(spa_static_dir, "index.html")
+    # Static files are mounted at /workspace/static in container
+    index_file = os.path.join(STATIC_DIR, "index.html")
 
     # If the static directory and index.html exist, serve the SPA
     if os.path.exists(index_file):

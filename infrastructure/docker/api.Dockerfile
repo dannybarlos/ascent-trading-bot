@@ -15,11 +15,12 @@ FROM python:3.11-slim
 WORKDIR /workspace
 
 # Install Python dependencies
-COPY backend/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-COPY backend/ ./
+# Copy reorganized code
+COPY core/ ./core/
+COPY services/ ./services/
 
 # Copy built frontend into backend static directory
 COPY --from=frontend-builder /frontend/dist ./static
@@ -31,4 +32,4 @@ RUN mkdir -p shared static && chmod -R 755 shared static
 EXPOSE 8000
 
 # Start the API service (no scheduler, no websocket)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "services.api.api_server:app", "--host", "0.0.0.0", "--port", "8000"]

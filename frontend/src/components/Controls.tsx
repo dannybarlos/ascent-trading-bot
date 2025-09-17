@@ -34,6 +34,7 @@ const Controls: React.FC<ControlsProps> = ({ running, onStrategyChange, onToggle
                 <option value="momentum">Momentum</option>
                 <option value="rsi">RSI</option>
                 <option value="breakout">Breakout</option>
+                <option value="sma_crossover">SMA Crossover</option>
             </select>
 
             <button

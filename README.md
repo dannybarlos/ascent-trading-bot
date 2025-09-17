@@ -1,14 +1,44 @@
 # Ascent Trading Bot
 
-A full-stack algorithmic trading application built with React, FastAPI, and Docker. Features real-time WebSocket updates, multiple trading strategies, and a microservices architecture.
+A sophisticated microservices-based algorithmic trading bot built with FastAPI, React, and Docker. Features real-time WebSocket communication, multiple trading strategies, and comprehensive monitoring capabilities.
 
 ## 🏗️ Architecture
 
-- **API Service**: FastAPI REST endpoints and static file serving
-- **WebSocket Service**: Real-time client communication
-- **Trading Service**: Background strategy execution with APScheduler
-- **Redis**: Inter-service messaging and pub/sub
-- **SQLite**: Trade and bot state persistence
+### Microservices Design
+- **API Service** (`port 8000`): FastAPI REST endpoints, static file serving, and React SPA hosting
+- **WebSocket Service** (`port 8001`): Real-time client communication and trade broadcasting
+- **Trading Service**: Background strategy execution with APScheduler (5-minute intervals)
+- **Redis** (`port 6379`): Inter-service messaging, pub/sub, and real-time updates
+- **SQLite**: Trade history, bot state, and strategy performance persistence
+
+### Service Communication
+- **Redis Pub/Sub**: Real-time trade notifications between Trading → WebSocket → Frontend
+- **Shared Database**: Persistent state management across container restarts
+- **RESTful API**: Frontend ↔ API service communication
+- **WebSocket**: Real-time updates for live dashboard experience
+
+### Container Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   API Service   │    │ WebSocket Svc   │    │ Trading Service │
+│   (port 8000)   │    │   (port 8001)   │    │  (background)   │
+│                 │    │                 │    │                 │
+│ • REST API      │    │ • Real-time     │    │ • Strategy exec │
+│ • React SPA     │    │   updates       │    │ • Multi-symbol  │
+│ • Static files  │    │ • Trade alerts  │    │ • Scheduling    │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          └──────────────────────┼──────────────────────┘
+                                 │
+                    ┌─────────────┴───────────┐
+                    │      Redis Pub/Sub      │
+                    │     (port 6379)         │
+                    │                         │
+                    │ • Trade notifications   │
+                    │ • Strategy changes      │
+                    │ • Status updates        │
+                    └─────────────────────────┘
+```
 
 ## 🚀 Quick Start
 
@@ -40,6 +70,7 @@ A full-stack algorithmic trading application built with React, FastAPI, and Dock
 
 3. **Start the application**
    ```bash
+   cd infrastructure
    docker-compose up --build
    ```
 
@@ -50,21 +81,65 @@ A full-stack algorithmic trading application built with React, FastAPI, and Dock
 
 ## 📊 Trading Strategies
 
-The application includes several built-in strategies:
+The application includes 4 comprehensive built-in strategies that automatically trade across the **top 10 S&P 500 stocks**:
 
-- **RSI Strategy**: Relative Strength Index based trading
-- **SMA Crossover**: Simple Moving Average crossover signals
-- **Momentum Strategy**: Price momentum detection
-- **Breakout Strategy**: Support/resistance level breakouts
+- **RSI Strategy**: Uses 14-period RSI indicator (Buy when RSI < 30, Sell when RSI > 70)
+- **Momentum Strategy**: 50-day vs 200-day moving average crossover strategy
+- **Breakout Strategy**: 20-period support/resistance breakout detection
+- **SMA Crossover**: Short-term (3-day) vs Long-term (5-day) moving average crossover
+
+### Multi-Symbol Trading
+The bot automatically monitors and trades:
+- **AAPL** (Apple Inc.)
+- **MSFT** (Microsoft Corporation)
+- **GOOGL** (Alphabet Inc. Class A)
+- **AMZN** (Amazon.com Inc.)
+- **NVDA** (NVIDIA Corporation)
+- **TSLA** (Tesla Inc.)
+- **META** (Meta Platforms Inc.)
+- **BRK.B** (Berkshire Hathaway Inc. Class B)
+- **UNH** (UnitedHealth Group Inc.)
+- **JNJ** (Johnson & Johnson)
+
+**Execution Schedule**: Every 5 minutes, the bot evaluates all 10 symbols using the selected strategy and executes trades based on generated signals.
+
+## 🎨 User Interface Features
+
+### Dashboard Components
+- **Bot Status**: Real-time bot running/paused status with toggle control
+- **Strategy Selection**: Dynamic strategy switching between all 4 strategies
+- **Open Positions**: Live portfolio positions with market values and P&L
+- **Recent Trades**: Database-stored trade history with timestamps
+- **Recent Activity**: Auto-refreshing Alpaca activity feed with manual refresh option
+
+### Real-Time Updates
+- **WebSocket Integration**: Live trade notifications and bot status updates
+- **Auto-Refresh**: Activity feed refreshes every 30 seconds automatically
+- **Manual Controls**: Immediate refresh buttons for positions and activities
+- **Responsive Design**: Clean, professional interface with hover effects
+
+### Trading Controls
+- **Strategy Switching**: Real-time strategy changes apply to all 10 symbols
+- **Bot Toggle**: Start/stop automated trading with persistent state
+- **Manual Trading**: Execute test trades for any supported symbol
+- **Performance Tracking**: Strategy performance metrics and portfolio monitoring
 
 ## 🛠️ Development
 
-### Frontend Development
+### Local Development
 ```bash
-cd frontend
-npm install
-npm run dev        # Development server
-npm run build      # Production build
+# Install dependencies
+pip install -r requirements.txt
+cd frontend && npm install
+
+# Run services individually
+python -m services.api.api_server                    # API on :8000
+python -m services.websocket.websocket_server        # WebSocket on :8001
+python -c "from services.trading.trading_engine import start_scheduler; start_scheduler()"
+
+# Frontend development
+cd frontend && npm run dev        # Development server
+cd frontend && npm run build      # Production build
 ```
 
 ### Backend Development
@@ -91,13 +166,37 @@ curl -X POST http://localhost:8000/api/execute_trade \\
 
 ## 📚 API Endpoints
 
-- `GET /api/account` - Account information
-- `GET /api/positions` - Current positions
-- `GET /api/activities` - Recent activities
-- `POST /api/toggle` - Start/stop bot
-- `POST /api/strategy` - Change strategy
-- `POST /api/execute_trade` - Manual trade execution
-- `GET /api/trades` - Recent trades from database
+### Core Endpoints
+- `GET /api/health` - Health check status
+- `GET /api/account` - Alpaca account information and buying power
+- `GET /api/positions` - Current portfolio positions with P&L
+- `GET /api/activities` - Recent Alpaca trading activities (auto-refreshing)
+- `GET /api/trades` - Database trade history with strategy info
+- `GET /api/status` - Current bot running status
+
+### Bot Control
+- `POST /api/toggle` - Start/stop automated trading bot
+- `POST /api/strategy` - Change trading strategy (momentum, rsi, breakout, sma_crossover)
+- `POST /api/execute_trade` - Manual trade execution for testing
+
+### WebSocket Endpoint
+- `ws://localhost:8001/ws` - Real-time trade notifications and bot status updates
+
+### Example API Usage
+```bash
+# Check bot status
+curl http://localhost:8000/api/status
+
+# Change strategy to RSI
+curl -X POST http://localhost:8000/api/strategy \
+  -H "Content-Type: application/json" \
+  -d '{"strategy": "rsi"}'
+
+# Execute manual test trade
+curl -X POST http://localhost:8000/api/execute_trade \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "AAPL", "action": "buy", "qty": 1}'
+```
 
 ## 🐛 Troubleshooting
 

@@ -1,6 +1,6 @@
-# CLAUDE.md
+# ARCHITECTURE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Comprehensive architecture documentation for the Ascent Trading Bot system.
 
 ## Project Architecture
 
@@ -16,33 +16,79 @@ The application consists of four main services:
 - **Redis Service**: Pub/sub messaging system enabling communication between services
 - **Database**: SQLite for persistent storage of trades, bot state, and strategy performance
 
+### Directory Structure
+
+The project is organized into a clean, logical structure that separates concerns and improves maintainability:
+
+```
+ascent-trading-bot/
+├── services/                        # Microservices
+│   ├── api/                         # API Service
+│   │   └── api_server.py            # FastAPI application
+│   ├── websocket/                   # WebSocket Service
+│   │   ├── websocket_server.py      # WebSocket server
+│   │   └── connection_manager.py    # Connection management
+│   └── trading/                     # Trading Service
+│       ├── trading_engine.py        # Trading bot engine
+│       ├── strategy_manager.py      # Strategy management
+│       └── strategies/              # Trading strategies
+│           ├── momentum_strategy.py
+│           ├── rsi_strategy.py
+│           ├── breakout_strategy.py
+│           └── sma_crossover_strategy.py
+├── core/                            # Shared Core Components
+│   ├── database/
+│   │   ├── database_manager.py      # Database connections
+│   │   └── trading_models.py        # SQLAlchemy models
+│   └── clients/
+│       ├── alpaca_trading_client.py # Alpaca API client
+│       └── redis_messaging_client.py # Redis messaging
+├── frontend/                        # React frontend
+│   ├── src/
+│   │   ├── components/             # UI components
+│   │   ├── pages/                  # Page components
+│   │   └── hooks/                  # Custom hooks
+│   └── package.json
+└── infrastructure/                  # Infrastructure & Config
+    ├── docker/
+    │   ├── api.Dockerfile          # API service image
+    │   ├── websocket.Dockerfile    # WebSocket service image
+    │   └── trading.Dockerfile      # Trading service image
+    ├── docs/                       # Documentation
+    │   ├── ARCHITECTURE.md         # This file
+    │   ├── TROUBLESHOOTING.md      # Troubleshooting guide
+    │   └── MIGRATION.md            # Migration notes
+    └── docker-compose.yml          # Service orchestration
+```
+
 ### Key Components
 
 **Backend Services**:
 
-*API Service*:
-- `main.py`: FastAPI application with REST API routes and static file serving
+*API Service* (`services/api/`):
+- `api_server.py`: FastAPI application with REST API routes and static file serving
 - Handles account information, positions, activities, and manual trade execution
 - Manages bot control (start/stop, strategy changes) via Redis messaging
 - Serves the built React frontend as static files
 
-*WebSocket Service*:
-- `websocket_service.py`: Dedicated WebSocket server for real-time client connections
+*WebSocket Service* (`services/websocket/`):
+- `websocket_server.py`: Dedicated WebSocket server for real-time client connections
+- `connection_manager.py`: WebSocket connection management utilities
 - Subscribes to Redis pub/sub for trade notifications and bot status changes
 - Broadcasts real-time updates to connected frontend clients
 - Isolated from API service for better performance and reliability
 
-*Trading Service*:
-- `scheduler.py`: APScheduler-based bot executing trading strategies
-- `strategy_registry.py`: Strategy loading and management system
+*Trading Service* (`services/trading/`):
+- `trading_engine.py`: APScheduler-based bot executing trading strategies
+- `strategy_manager.py`: Strategy loading and management system
 - `strategies/`: Trading strategy implementations (RSI, SMA crossover, momentum, breakout)
 - Publishes trade executions and status changes to Redis
 
-*Shared Components*:
-- `models.py`: SQLAlchemy database models for trades, bot control, and strategies
-- `database.py`: Database connection and session management
-- `alpaca_client.py`: Alpaca Markets API integration for live trading
-- `redis_client.py`: Redis pub/sub client for inter-service communication
+*Core Shared Components* (`core/`):
+- `database/trading_models.py`: SQLAlchemy database models for trades, bot control, and strategies
+- `database/database_manager.py`: Database connection and session management
+- `clients/alpaca_trading_client.py`: Alpaca Markets API integration for live trading
+- `clients/redis_messaging_client.py`: Redis pub/sub client for inter-service communication
 
 **Frontend (`frontend/src/`)**:
 - `pages/Dashboard.tsx`: Main trading dashboard with live data
@@ -116,13 +162,16 @@ npm run preview    # Preview production build
 
 ### Backend Development
 ```bash
-cd backend
 pip install -r requirements.txt    # Install dependencies
-uvicorn main:app --reload --host 0.0.0.0 --port 8000    # Start development server
+# Run individual services for development:
+python -m services.api.api_server                    # API service
+python -m services.websocket.websocket_server        # WebSocket service
+python -c "from services.trading.trading_engine import start_scheduler; start_scheduler()"  # Trading service
 ```
 
 ### Docker Development
 ```bash
+cd infrastructure
 docker-compose up --build    # Start all services
 docker-compose down          # Stop all services
 ```

@@ -32,6 +32,24 @@ const Dashboard: React.FC = () => {
       .catch(err => console.error('Failed to fetch status:', err));
   }, []);
 
+  // Fetch initial trades
+  useEffect(() => {
+    fetch('/api/trades')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const formattedTrades = data.map(trade => ({
+            symbol: trade.symbol,
+            action: trade.action,
+            price: trade.price,
+            timestamp: trade.created_at
+          }));
+          setTrades(formattedTrades);
+        }
+      })
+      .catch(err => console.error('Failed to fetch trades:', err));
+  }, []);
+
   useEffect(() => {
     if (!message) return;
 
@@ -80,7 +98,6 @@ const Dashboard: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-4">
           <div className="text-lg font-bold mb-2">Bot Status</div>
           <div className="text-gray-700">{status}</div>
-          <div style={{color: 'red'}}>BUILD TEST MARKER - VERSION 3.0</div>
         </div>
 
         <div className="bg-white shadow rounded-lg p-4">

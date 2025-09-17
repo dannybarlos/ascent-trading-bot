@@ -4,14 +4,15 @@ FROM python:3.11-slim
 WORKDIR /workspace
 
 # Install Python dependencies
-COPY backend/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-COPY backend/ ./
+# Copy reorganized code
+COPY core/ ./core/
+COPY services/ ./services/
 
 # Expose port
 EXPOSE 8001
 
 # Start the WebSocket service
-CMD ["python", "websocket_service.py"]
+CMD ["python", "-m", "services.websocket.websocket_server"]

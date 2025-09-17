@@ -66,22 +66,22 @@ const PositionTable = () => {
         <p>No positions...</p>
       ) : (
         <>
-          <table>
+          <table className="w-full border-collapse border border-gray-300">
             <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Qty</th>
-                <th>Entry</th>
-                <th>Market Value</th>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 px-4 py-2 text-left">Symbol</th>
+                <th className="border border-gray-300 px-4 py-2 text-right">Qty</th>
+                <th className="border border-gray-300 px-4 py-2 text-right">Entry</th>
+                <th className="border border-gray-300 px-4 py-2 text-right">Market Value</th>
               </tr>
             </thead>
             <tbody>
               {positions.map((pos, i) => (
-                <tr key={i}>
-                  <td>{pos.symbol}</td>
-                  <td>{pos.qty}</td>
-                  <td>${parseFloat(pos.avg_entry_price).toFixed(2)}</td>
-                  <td>${parseFloat(pos.market_value).toFixed(2)}</td>
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="border border-gray-300 px-4 py-2">{pos.symbol}</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right">{pos.qty}</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right">${parseFloat(pos.avg_entry_price).toFixed(2)}</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right">${parseFloat(pos.market_value).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
