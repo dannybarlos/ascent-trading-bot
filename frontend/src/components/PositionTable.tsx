@@ -1,97 +1,136 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { usePositions } from '../services/queries';
+import { Card, LoadingOverlay, TableSkeleton } from './ui';
+import { Position } from '../types';
 
-const PositionTable = () => {
-  const [positions, setPositions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const PositionRow: React.FC<{ position: Position; index: number }> = ({ position, index }) => {
+  const unrealizedPl = position.unrealized_pl || 0;
+  const isProfit = unrealizedPl >= 0;
 
-  const fetchPositions = async () => {
-    try {
-      setError(null);
-      const response = await fetch("/api/positions");
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
-      setPositions(data);
-    } catch (err) {
-      console.error("Failed to fetch positions:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch positions");
-    } finally {
-      setLoading(false);
-    }
-  };
+  return (
+    <motion.tr
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+    >
+      <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
+        {position.symbol}
+      </td>
+      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+        {position.qty}
+      </td>
+      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+        ${parseFloat(position.avg_entry_price.toString()).toFixed(2)}
+      </td>
+      <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
+        ${parseFloat(position.market_value.toString()).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}
+      </td>
+      <td className="px-4 py-3 text-right">
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded text-sm font-medium ${
+            isProfit
+              ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+              : 'bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400'
+          }`}
+        >
+          {isProfit ? '▲' : '▼'} ${Math.abs(unrealizedPl).toFixed(2)}
+        </span>
+      </td>
+    </motion.tr>
+  );
+};
 
-  useEffect(() => {
-    fetchPositions();
+export const PositionTable: React.FC = () => {
+  const { data: positions, isLoading, isError, error, refetch } = usePositions();
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchPositions, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (error) {
+  if (isError) {
     return (
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h3>Open Positions</h3>
-          <button
-            onClick={fetchPositions}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            🔄 Refresh
+      <Card
+        title="Open Positions"
+        action={
+          <button onClick={() => refetch()} className="text-primary-500 hover:text-primary-600">
+            🔄 Retry
           </button>
+        }
+      >
+        <div className="text-center py-8">
+          <p className="text-danger-600 dark:text-danger-400">
+            Failed to load positions
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {error instanceof Error ? error.message : 'Unknown error'}
+          </p>
         </div>
-        <p style={{ color: 'red' }}>Error: {error}</p>
-      </div>
+      </Card>
     );
   }
 
+  if (isLoading) {
+    return (
+      <Card title="Open Positions">
+        <TableSkeleton rows={5} cols={5} />
+      </Card>
+    );
+  }
+
+  const positionList = positions || [];
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <h3>Open Positions</h3>
+    <Card
+      title="Open Positions"
+      subtitle={`${positionList.length} position${positionList.length !== 1 ? 's' : ''}`}
+      action={
         <button
-          onClick={fetchPositions}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          disabled={loading}
+          onClick={() => refetch()}
+          className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+          aria-label="Refresh positions"
         >
-          🔄 Refresh
+          🔄
         </button>
-      </div>
-      {loading ? (
-        <p>Loading positions...</p>
-      ) : positions.length === 0 ? (
-        <p>No positions...</p>
+      }
+    >
+      {positionList.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500 dark:text-gray-400">
+            No open positions
+          </p>
+        </div>
       ) : (
-        <>
-          <table className="w-full border-collapse border border-gray-300">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-4 py-2 text-left">Symbol</th>
-                <th className="border border-gray-300 px-4 py-2 text-right">Qty</th>
-                <th className="border border-gray-300 px-4 py-2 text-right">Entry</th>
-                <th className="border border-gray-300 px-4 py-2 text-right">Market Value</th>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                  Symbol
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                  Quantity
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                  Entry Price
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                  Market Value
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                  P/L
+                </th>
               </tr>
             </thead>
             <tbody>
-              {positions.map((pos, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-2">{pos.symbol}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right">{pos.qty}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right">${parseFloat(pos.avg_entry_price).toFixed(2)}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right">${parseFloat(pos.market_value).toFixed(2)}</td>
-                </tr>
+              {positionList.map((position, index) => (
+                <PositionRow key={position.symbol} position={position} index={index} />
               ))}
             </tbody>
           </table>
-          <p style={{ fontSize: '0.8em', color: '#666' }}>
-            Last updated: {new Date().toLocaleTimeString()}
-          </p>
-        </>
+        </div>
       )}
-    </div>
+    </Card>
   );
 };
 

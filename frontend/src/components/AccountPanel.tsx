@@ -1,90 +1,110 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useAccount } from '../services/queries';
+import { Card, LoadingOverlay, CardSkeleton } from './ui';
 
-const AccountPanel = () => {
-  const [account, setAccount] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const AccountPanel: React.FC = () => {
+  const { data: account, isLoading, isError, error, refetch } = useAccount();
 
-  const fetchAccount = async () => {
-    try {
-      setError(null);
-      const response = await fetch("/api/account");
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
-      setAccount(data);
-    } catch (err) {
-      console.error("Failed to fetch account:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch account");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAccount();
-
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchAccount, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (error) {
+  if (isError) {
     return (
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h3>Account Info</h3>
-          <button
-            onClick={fetchAccount}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            🔄 Refresh
+      <Card
+        title="Account Information"
+        action={
+          <button onClick={() => refetch()} className="text-primary-500 hover:text-primary-600">
+            🔄 Retry
           </button>
+        }
+      >
+        <div className="text-center py-8">
+          <p className="text-danger-600 dark:text-danger-400">
+            Failed to load account data
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {error instanceof Error ? error.message : 'Unknown error'}
+          </p>
         </div>
-        <p style={{ color: 'red' }}>Error: {error}</p>
-      </div>
+      </Card>
     );
   }
 
-  if (loading || !account) {
+  if (isLoading || !account) {
     return (
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h3>Account Info</h3>
-          <button
-            onClick={fetchAccount}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-            disabled={loading}
-          >
-            🔄 Refresh
-          </button>
-        </div>
-        <p>Loading account info...</p>
-      </div>
+      <Card title="Account Information">
+        <LoadingOverlay message="Loading account data..." />
+      </Card>
     );
   }
+
+  const cash = parseFloat(account.cash?.toString() || '0');
+  const portfolioValue = parseFloat(account.portfolio_value?.toString() || '0');
+  const buyingPower = parseFloat(account.buying_power?.toString() || '0');
+
+  const stats = [
+    {
+      label: 'Cash',
+      value: `$${cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: '💵',
+      color: 'text-success-600 dark:text-success-400',
+    },
+    {
+      label: 'Portfolio Value',
+      value: `$${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: '📊',
+      color: 'text-primary-600 dark:text-primary-400',
+    },
+    {
+      label: 'Buying Power',
+      value: `$${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: '⚡',
+      color: 'text-yellow-600 dark:text-yellow-400',
+    },
+  ];
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <h3>Account Info</h3>
+    <Card
+      title="Account Information"
+      subtitle={account.account_number || 'Paper Trading'}
+      action={
         <button
-          onClick={fetchAccount}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          disabled={loading}
+          onClick={() => refetch()}
+          className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+          aria-label="Refresh account data"
         >
-          🔄 Refresh
+          🔄
         </button>
+      }
+    >
+      <div className="space-y-4">
+        {stats.map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{stat.icon}</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                {stat.label}
+              </span>
+            </div>
+            <span className={`text-lg font-bold ${stat.color}`}>
+              {stat.value}
+            </span>
+          </motion.div>
+        ))}
+
+        {account.pattern_day_trader && (
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm text-yellow-800 dark:text-yellow-400">
+              ⚠️ Pattern Day Trader
+            </p>
+          </div>
+        )}
       </div>
-      <p><strong>Status:</strong> {account._raw?.status || 'Unknown'}</p>
-      <p><strong>Cash:</strong> ${parseFloat(account._raw?.cash || 0).toFixed(2)}</p>
-      <p><strong>Portfolio Value:</strong> ${parseFloat(account._raw?.portfolio_value || 0).toFixed(2)}</p>
-      <p style={{ fontSize: '0.8em', color: '#666' }}>
-        Last updated: {new Date().toLocaleTimeString()}
-      </p>
-    </div>
+    </Card>
   );
 };
 
