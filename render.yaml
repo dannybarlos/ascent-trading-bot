@@ -1,0 +1,45 @@
+# Render.com Blueprint
+# Automatically deploys your app with Redis
+
+services:
+  # Main web service
+  - type: web
+    name: ascent-trading-bot
+    runtime: python
+    plan: free
+    buildCommand: "chmod +x railway-build.sh && ./railway-build.sh"
+    startCommand: "chmod +x railway-start.sh && ./railway-start.sh"
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      # Alpaca credentials (you must set these manually)
+      - key: ALPACA_API_KEY
+        sync: false
+
+      - key: ALPACA_SECRET_KEY
+        sync: false
+
+      - key: ALPACA_BASE_URL
+        value: https://paper-api.alpaca.markets
+
+      # Redis connection (auto-linked from Redis service below)
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: ascent-redis
+          property: connectionString
+
+      # Application settings
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: WORKERS
+        value: 2
+
+  # Redis service (free for 90 days, then $7/month)
+  - type: redis
+    name: ascent-redis
+    plan: free
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
