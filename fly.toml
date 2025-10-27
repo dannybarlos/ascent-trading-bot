@@ -1,0 +1,44 @@
+# Fly.io configuration
+# Deploy with: flyctl deploy
+
+app = "ascent-trading-bot"
+primary_region = "ord"
+
+[build]
+  # Use the build script
+  [build.args]
+    PYTHON_VERSION = "3.11"
+
+[env]
+  PORT = "8080"
+  HOST = "0.0.0.0"
+  LOG_LEVEL = "INFO"
+  WORKERS = "2"
+  # Set ALPACA_* variables via: flyctl secrets set ALPACA_API_KEY=xxx
+  # Set REDIS_URL via: flyctl redis create
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+# Uncomment to add Redis (costs ~$2/month)
+# [[services]]
+#   [[services.ports]]
+#     handlers = ["pg_tls"]
+#     port = 5432

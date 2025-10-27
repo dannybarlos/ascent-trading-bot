@@ -1,0 +1,21 @@
+# Nixpacks configuration for Railway
+# Railway uses Nixpacks to automatically detect and build your app
+
+[phases.setup]
+nixPkgs = ["python311", "nodejs-18_x", "npm"]
+aptPkgs = ["git"]
+
+[phases.install]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install --no-cache-dir -r requirements.txt",
+    "cd frontend && npm ci --prefer-offline --no-audit"
+]
+
+[phases.build]
+cmds = [
+    "cd frontend && npm run build && cd .."
+]
+
+[start]
+cmd = "chmod +x railway-start.sh && ./railway-start.sh"
